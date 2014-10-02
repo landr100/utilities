@@ -62,7 +62,7 @@ class MyLogMain(object):
 		parser.add_argument('-D', '--debug', action="store_true", dest="debug", help="enable low level debugging", default=false)
 		parser.add_argument('-s', '--send_to', action="store_true", dest="send_to", help="email addresses to send mail to", default='') # by default we use a default distribution list
 		parser.add_argument('-d', '--date', action="store", dest="date", help="specific date for scraping log", default='') # by default we use a default date
-		parser.add_argument('-S', '--start', action="store", dest="start", help="specific line to start scraping", default='') # by default we start scraping with the first line
+		parser.add_argument('-S', '--start', action="store", dest="start", help="specific line to start scraping", default=nil) # by default we start scraping with the first line
 		parser.add_argument('-t', '--logtype', action="store", dest="logtype", help="log type", required=true) # a 'required option', generally considered bad form
 		parser.add_argument('-f', '--logfile', action="store", dest="logfile", help="log filename", default='') # by default we ...
 		# 'date' is the date to start scraping e.g. 2014-09-01, whereas 'start' is the starting line e.g. 'abc'
@@ -101,17 +101,14 @@ class MyLogMain(object):
 		self._slash_date = self._date.strftime("%m/%d/%y") # e.g. 05/23/12 # has slashes
 
 		self._my_type = args.logtype
-		# confirm that this is a known type
-		found = false
-		for known_type in self._logtypes:
-			if self._my_type == known_type:
-				found = true
-				break
 
-		if not found: self.usage("logtype %r is unknown" % self._my_type, 12)
+		# confirm that this is a known type
+		if not (self._my_type in self._logtypes):
+			self.usage("logtype %r is unknown" % self._my_type, 12)
 
 		# define the starting line
-		self._start_line = (args.start if len(args.start) > 0 else self._hyphen_date) # e.g. 2012-05-23
+		log("args.start is %r" % args.start)
+		self._start_line = (self._hyphen_date if args.start is None else args.start) # e.g. 2012-05-23
 
 		self._logfile_type = My_script + '.' + self._my_type # e.g. check.py.runlog
 
@@ -133,11 +130,9 @@ class MyLogMain(object):
 
 			if find('\*', logfile_name):
 				# make a special case for file 'globs':
-				# self._logfile_name = Dir.glob(self._logfile_name).sort.reverse.first if self._logfile_name['*']
 				filelist = glob.glob(self._logfile_name); filelist.sort()
 				self._logfile_name = filelist[-1] # store the last name
 			elif find('^/', logfile_name):
-				# self._logfile_name = "#{my_logdir}/#{self._logfile_name}" unless self._logfile_name['/'] # look in a standard location by default
 				self._logfile_name = logfile_name # use the filename as given, assume its path is relative
 			else:
 				log("did not find '^/' in %r" % logfile_name)
@@ -170,6 +165,7 @@ class MyLogMain(object):
 		if second_try: return second_try
 
 		if self._debug: log("Warning: can't find default location of log files for type %s and host %s" % (self._my_type, host_type))
+		# 10/02/14 15:34:07 : Warning: can't find default location of log files for type buffer_example and host Macintosh-addf.local
 		# exit(3)
 
 		# third try: can we find filename for this logtype?
@@ -178,18 +174,14 @@ class MyLogMain(object):
 		if int(run_cmd("grep '^%s,filename' %s -c -m 1" % (self._my_type, self._monitoring_text))) == 1:
 			logdir = chomp(run_cmd("dirname $(grep '^%s,filename' %s -m 1|cut -d, -f3)" % (self._my_type, self._monitoring_text)))
 			return logdir
-			# robin@Macintosh-109add5916f4:~/mydocs/development$ dirname $(grep '^myip,filename' /Users/Robin/bin/monitoring.txt -m 1|cut -d, -f3)
-			# /Users/Robin/bin
+			# e.g. /Users/Robin/bin on local mac
 		else:
 			log("Error: can't find location of log files for type %s and host %s" % (self._my_type, host_type))
 			exit(3)
 
 	def usage(self, msg, exit_code):
-		# logtype_msg = re.sub(self._logtypes_str, ' ', '|') # .gsub(/[",]/,'') # pretty-print the list of logtypes
+		# pretty-print the list of logtypes
 		logtype_msg = '|'.join(self._logtypes)
-		# logtype_msg = re.sub(logtype_msg, '[",]', '') # pretty-print the list of logtypes
-		# TODO: get the list from the array and pretty print it
-		# log("usage: #{@my_script_name} --logtype=#{logtype_msg} [--date=YYYY-MM-DD] [-v] [-nomail] [-debug] [--start=SSSS]"
 		if self._debug: self._parser.print_usage()
 		log("usage: %s --logtype=%r [--date=YYYY-MM-DD] [-v] [-nomail] [-debug] [--start=SSSS]" % (My_script, logtype_msg))
 		if msg: log(msg) # the second message is optional
@@ -199,9 +191,9 @@ class MyLogMain(object):
 		print my_list
 		my_list_str = ','.join(my_list)
 		if len(my_list_str) > 0:
-			dlog(my_str + ':' + my_list_str)
+			log(my_str + ':' + my_list_str)
 		else:
-			dlog(my_str + ':' + ' empty list')
+			log(my_str + ':' + ' empty list')
 
 	def __print_lists(self, success_list, errors_list, warnings_list):
 		self.__print_list('success', success_list)
@@ -211,12 +203,12 @@ class MyLogMain(object):
 	# read the appropriate lists from a file and instantiate the scraper based on those lists
 	def read_lists(self):
 		# read in each list one at a time; note, python split is different than ruby with handling of final delimiter
-		# success_list = run_cmd("grep '^#{@my_type},success' #{self._monitoring_text} | cut -d, -f3").split(/\n/).uniq
-		# errors_list = run_cmd("grep '^#{@my_type},error' #{self._monitoring_text} | cut -d, -f3").split(/\n/).uniq
-		# warnings_list = run_cmd("grep '^#{@my_type},warning' #{self._monitoring_text} | cut -d, -f3").split(/\n/).uniq
-		success_list = chomp(run_cmd("grep '^%s,success' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
-		errors_list = chomp(run_cmd("grep '^%s,error' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
-		warnings_list = chomp(run_cmd("grep '^%s,warning' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
+		# success_list = chomp(run_cmd("grep '^%s,success' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
+		# errors_list = chomp(run_cmd("grep '^%s,error' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
+		# warnings_list = chomp(run_cmd("grep '^%s,warning' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))).split('\n')
+		success_list = mysplit(chomp(run_cmd("grep '^%s,success' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))), '\n')
+		errors_list = mysplit(chomp(run_cmd("grep '^%s,error' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))), '\n')
+		warnings_list = mysplit(chomp(run_cmd("grep '^%s,warning' %s | cut -d, -f3 | uniq" % (self._my_type, self._monitoring_text))), '\n')
 		if self._debug: self.__print_lists(success_list, errors_list, warnings_list)
 
 		tempfile = "/tmp/%s.%s.tmp" % (self._my_type, os.environ['USER'])
@@ -228,13 +220,12 @@ class MyLogMain(object):
 		# special case for scraping a buffer
 		if self._logfile_name == '/buffer':
 			# reset a few variables
-			self._logfile_name = nil # reading from a buffer, not from a file
+			self._logfile_name = 'buffer or pipe' # reading from a buffer, not from a file
 			# if len(args.start) == 0: self._start_line = '' # unless @opts['start'] # start scraping at the beginning of the buffer, unless specified on cmd line # seems redundant; TODO
 
 			# read each line from stdin into a buffer
 			# ref: http://stackoverflow.com/questions/1450393/how-do-you-read-from-stdin-in-python
 			self._my_buffer = sys.stdin.readlines()
-			dlog(self._my_buffer)
 
 			# no input ==> nothing to check
 			if len(self._my_buffer) == 0: exit(0)
@@ -250,30 +241,25 @@ class MyLogMain(object):
 
 	# scrape either a file or a buffer
 	def scrape_log(self, send_mail=false):
-		if len(self._my_buffer) == 0:
-			self._scraper.scrape(send_mail, silent=self._silent)
-		else:
+		if len(self._my_buffer) > 0:
+			log("about to scrape buffer %r" % self._my_buffer)
 			self._scraper.buffer_scrape(send_mail, silent=self._silent)
-
-		if self._debug: log("results of scraping log file %s are : %s" % (self._logfile_name, self._scraper))
+		else:
+			log("about to scrape file")
+			self._scraper.scrape(send_mail, silent=self._silent)
 
 	# process optional "exact match" monitoring
 	def process_exact_matches(self):
 		# read in each list one at a time, for example, look for lines like these:
 		# applog,count,exact=1,about to copy files .buyer.*201.*.csv.gz. to ftp server,match exactly 1 such line
 		# applog,count,exact=11,about to copy file buyer.*csv.gz$,match exactly 11 such lines
-		# exact_list = run_cmd("grep '^#{@my_type},count' #{self._monitoring_text} | cut -d, -f3,4").split(/\n/).uniq # => ["exact=1,about to.*", "exact=11,about to.*"]
-		# return unless exact_list.length > 0
 		exact_list = chomp(run_cmd("grep '^%s,count' %s | cut -d, -f3,4 | uniq" % (self._my_type, self._monitoring_text))).split('\n') # => ["exact=1,about to.*", "exact=11,about to.*"]
-		if len(exact_list) == 0: return
-
-		dlog(exact_list)
+		if len(exact_list) == 0 or exact_list == ['']: return
 
 		errors_list = []
 		warnings_list = []
 
 		exact_num = 0
-		# exact_list.each do |my_list|
 		for my_list in exact_list:
 			# parse each item in the list
 			strings = my_list.split(',') # => ["exact=1", "about to.*"]
@@ -281,7 +267,6 @@ class MyLogMain(object):
 			success_list = [strings[1]] # => ["about to.*"]
 
 			exact_num += 1
-			# tempfile = "/tmp/#{@my_type}.#{ENV['USER']}.exact#{exact_num}.tmp"
 			tempfile = "/tmp/%s.%s.exact%d.tmp" % (self._my_type, os.environ['USER'], exact_num)
 
 			# this_scraper = MyLogScraper.new(@logfile_name, @logfile_type, start_line=@start_line, end_line=nil, warnings_list, errors_list, success_list,
@@ -299,7 +284,6 @@ class MyLogMain(object):
 			# if self._debug: log("results of scraping log file %s for exact match .%r. are : %r" % (self._logfile_name, my_list, this_scraper)) # or str(this_scraper)
 
 			# see if we matched the number needed
-			# msg = "#{num_exact_matches} line(s) like #{success_list.inspect}"
 			msg = "%d line(s) like %r" % (num_exact_matches, success_list)
 			if num_exact_matches == len(self._scraper._saved_lines):
 				msg = "found " + msg
@@ -308,7 +292,6 @@ class MyLogMain(object):
 				msg = "did not find %r; found %d line(s) instead" % (msg, len(self._scraper._saved_lines))
 				self._scraper.num_errors = 1
 
-			# log msg if self._debug || !self._silent
 			if self._debug or not self._silent: log(msg)
 
 			if self._send_mail:

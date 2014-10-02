@@ -249,9 +249,14 @@ def print_stack():
 def dlog(msg):
 	my_stack = print_stack()
 	if len(msg) > 0:
-		log("%s -> %s" % (my_stack, msg))
+		log("%s from %s" % (msg, my_stack))
 	else:
 		log("dlog with no msg from %s" % my_stack)
+
+# ref: http://stackoverflow.com/questions/2197451/why-are-empty-strings-returned-in-split-results
+# modified implementation of split which returns an empty list if the input is empty
+def mysplit(s, delim=None):
+	return [x for x in s.split(delim) if x]
 
 # end of file
 
