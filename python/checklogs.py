@@ -210,7 +210,7 @@ class MyLogScraper(object):
 			log("saved_lines is now: %r" % self._saved_lines)
 			for line in self._saved_lines:
 				# TODO: confirm line[1] and line[0] are what we expect
-				fp.write("%d: %s" % (line[1], line[0]))
+				fp.write("%d: %s\n" % (line[1], line[0]))
 			fp.close()
 
 			cmd_line += "--attach " + self._tempfile # attach the temp file to the email message; optionally copy its contents as the body (TODO)
