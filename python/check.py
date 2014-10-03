@@ -1,9 +1,13 @@
 #!/usr/bin/python
 
 # generic log checking program
-# check.py --logtype=%r [--date=YYYY-MM-DD] [-v] [-nomail] [-debug] [--start=SSSS]
-# e.g. check.py --logtype=myip # test case
 # uses reusable class for log scraping
+
+# usage:
+# check.py --logtype=%r [--date=YYYY-MM-DD] [-v] [-nomail] [-debug] [--start=SSSS]
+# for example:
+# echo 'successful log entry' | check.py --logtype=buffer_example -v --start='' # one line of input
+# echo 'one line only' | check.py --logtype=exact_buffer_example --start='' # look for exact match
 
 import glob # glob.glob()
 import os, sys # os.stat(), sys.argv[], sys.stderr.write(), os.system(), os.pid()
@@ -107,7 +111,6 @@ class MyLogMain(object):
 			self.usage("logtype %r is unknown" % self._my_type, 12)
 
 		# define the starting line
-		log("args.start is %r" % args.start)
 		self._start_line = (self._hyphen_date if args.start is None else args.start) # e.g. 2012-05-23
 
 		self._logfile_type = My_script + '.' + self._my_type # e.g. check.py.runlog
@@ -126,7 +129,7 @@ class MyLogMain(object):
 				exit(4)
 
 			my_logdir = self.get_logdir()
-			if self._debug: log("my_logdir is %s" % my_logdir) # if @debug
+			if self._debug: log("my_logdir is %s" % my_logdir)
 
 			if find('\*', logfile_name):
 				# make a special case for file 'globs':
@@ -221,7 +224,6 @@ class MyLogMain(object):
 		if self._logfile_name == '/buffer':
 			# reset a few variables
 			self._logfile_name = 'buffer or pipe' # reading from a buffer, not from a file
-			# if len(args.start) == 0: self._start_line = '' # unless @opts['start'] # start scraping at the beginning of the buffer, unless specified on cmd line # seems redundant; TODO
 
 			# read each line from stdin into a buffer
 			# ref: http://stackoverflow.com/questions/1450393/how-do-you-read-from-stdin-in-python
@@ -240,21 +242,26 @@ class MyLogMain(object):
 		if self._debug: log("scraper is %s" % self._scraper)
 
 	# scrape either a file or a buffer
-	def scrape_log(self, send_mail=false):
+	def scrape_log(self, send_mail, context):
 		if len(self._my_buffer) > 0:
-			log("about to scrape buffer %r" % self._my_buffer)
+			log("about to scrape buffer from " + context)
+			sleep(1)
 			self._scraper.buffer_scrape(send_mail, silent=self._silent)
 		else:
-			log("about to scrape file")
+			log("about to scrape file" + context)
 			self._scraper.scrape(send_mail, silent=self._silent)
+
+	# provide a simple summary
+	def summarize(self):
+		log("results of scraping log file %s are : %s" % (self._logfile_name, self._scraper))
 
 	# process optional "exact match" monitoring
 	def process_exact_matches(self):
 		# read in each list one at a time, for example, look for lines like these:
 		# applog,count,exact=1,about to copy files .buyer.*201.*.csv.gz. to ftp server,match exactly 1 such line
 		# applog,count,exact=11,about to copy file buyer.*csv.gz$,match exactly 11 such lines
-		exact_list = chomp(run_cmd("grep '^%s,count' %s | cut -d, -f3,4 | uniq" % (self._my_type, self._monitoring_text))).split('\n') # => ["exact=1,about to.*", "exact=11,about to.*"]
-		if len(exact_list) == 0 or exact_list == ['']: return
+		exact_list = mysplit(chomp(run_cmd("grep '^%s,count' %s | cut -d, -f3,4 | uniq" % (self._my_type, self._monitoring_text))), '\n') # => ["exact=1,about to.*", "exact=11,about to.*"]
+		if len(exact_list) == 0: return
 
 		errors_list = []
 		warnings_list = []
@@ -269,8 +276,6 @@ class MyLogMain(object):
 			exact_num += 1
 			tempfile = "/tmp/%s.%s.exact%d.tmp" % (self._my_type, os.environ['USER'], exact_num)
 
-			# this_scraper = MyLogScraper.new(@logfile_name, @logfile_type, start_line=@start_line, end_line=nil, warnings_list, errors_list, success_list,
-				# error_if_unknown=false, debug=@debug, tempfile, retain_if_success=true, my_buffer=@my_buffer, ignore_dupes=false)
 			# template is:
 			# def __init__(logfile_name, logfile_type=nil, start_line='', end_line=nil, warnings_list=[], errors_list=[], success_list=[],
 			# error_if_unknown=false, debug=false, tempfile=nil, retain_if_success=false, my_buffer=[], ignore_dupes=false)
@@ -279,9 +284,7 @@ class MyLogMain(object):
 				false, self._debug, tempfile, false, self._my_buffer, false)
 
 			# scrape the log
-			# this_scraper.scrape_log(mail=false, silent=self._silent)
-			self.scrape_log(false) # send_mail=false
-			# if self._debug: log("results of scraping log file %s for exact match .%r. are : %r" % (self._logfile_name, my_list, this_scraper)) # or str(this_scraper)
+			self.scrape_log(false, 'exact') # send_mail=false
 
 			# see if we matched the number needed
 			msg = "%d line(s) like %r" % (num_exact_matches, success_list)
@@ -300,21 +303,23 @@ class MyLogMain(object):
 				cmd_line = self._scraper.build_cmd_line(self._silent)
 				run_cmd(cmd_line, self._debug)
 
+		self.summarize()
+
 # end of class definition
 
 # main program:
 
 # process command line options, set up standard variables
 my_main = MyLogMain()
-print my_main
+if my_main._debug: print my_main
 
 # read in the success, warning, error lists for this type of monitoring
 my_main.read_lists()
 
 # scrape the log
 send_mail = my_main._send_mail
-my_main.scrape_log(send_mail)
-log("results of scraping log file %s are : %s" % (my_main._logfile_name, my_main._scraper))
+my_main.scrape_log(send_mail, 'main')
+my_main.summarize()
 
 # process 'exact matches' (i.e. looking for a specific number of lines matching a string), if any
 # TODO: if searching for exact matches, should we also search for non-exact matches?
@@ -323,7 +328,7 @@ my_main.process_exact_matches()
 # email results if requested on the command line (the default is to send email)
 if send_mail:
 	cmd_line = my_main._scraper.build_cmd_line(my_main._silent)
-	# cmd_line looks like "cm_mail.py --subject='check-dlp-daily.py monitoring:status=green' --body='...'" ; add the network id to the subject line if applicable
+	# cmd_line looks like "my-mail.py --subject='check-dlp-daily.py monitoring:status=green' --body='...'" ; add the network id to the subject line if applicable
 
 	if my_main._send_to: cmd_line += " --send_to=%s" % my_main._send_to
 	# e.g. --send_to='myname@company.com,user1@company.com,user2@company.com'

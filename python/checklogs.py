@@ -122,7 +122,6 @@ class MyLogScraper(object):
 			self.__save_line(line)
 			return true
 
-		log("warnings list is %r" % self._warnings_list)
 		for warning in self._warnings_list:
 			if re.search(warning, line):
 				if not self._silent:
@@ -153,7 +152,6 @@ class MyLogScraper(object):
 		# end of def __examine()
 
 	def __line_is_start(self, line):
-		log("looking for start %r in line %r" % (self._start_line, line))
 		return (re.search(self._start_line, line))
 
 	def __scrape_line(self, line, found_start):
@@ -185,7 +183,7 @@ class MyLogScraper(object):
 		summary = "examined "
 		summary += (str(self._num_examined) if self._num_ignored == 0 else "%d of %d" % (self._num_examined-self._num_ignored, self._num_examined)) + " lines "
 		summary += "in %s log file %s, found" % (self._logfile_type, self._logfile_name)
-		log("saved_lines is %r" % self._saved_lines)
+		if self._debug: log("saved_lines is %r" % self._saved_lines)
 		if self._num_errors > 0:
 			summary += " %d errors (%d:%s) and %d warnings" % (self._num_errors, self._saved_lines[0][1], self._saved_lines[0][0], self._num_warnings)
 		elif self._num_warnings > 0:
@@ -207,9 +205,7 @@ class MyLogScraper(object):
 		# put results in a temp file if there is more than 1 error and/or warning
 		if self._num_warnings + self._num_errors > 0:
 			fp = open(self._tempfile, "w")
-			log("saved_lines is now: %r" % self._saved_lines)
 			for line in self._saved_lines:
-				# TODO: confirm line[1] and line[0] are what we expect
 				fp.write("%d: %s\n" % (line[1], line[0]))
 			fp.close()
 
