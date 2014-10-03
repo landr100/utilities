@@ -213,7 +213,7 @@ class MyLogScraper(object):
 		else:
 			cmd_line += "--body='%s'" % self.__summarize(silent)
 
-		return cmd_line
+		return cmd_line + ' 2>&1'
 
 	# finish scraping: build command line, optionally run it, and return it
 	def __finish_scraping(self, send_mail, silent):

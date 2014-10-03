@@ -28,7 +28,7 @@ class MyLogMain(object):
 	"""main program to call reusable class to scrape a log"""
 	def __init__(self):
 		self._pid = os.getpid()
-		self._bin = '/Users/Robin/bin'
+		self._bin = (os.environ['HOME'] + '/bin' if ('HOME' in os.environ and len(os.environ['HOME']) > 2) else '/Users/Robin/bin')
 		self._monitoring_text = "%s/monitoring.txt" % self._bin
 
 		if not File('a').exists(self._monitoring_text):
@@ -172,12 +172,11 @@ class MyLogMain(object):
 		# exit(3)
 
 		# third try: can we find filename for this logtype?
-		# grep '^myip,filename' /Users/Robin/bin/monitoring.txt -c
+		# grep '^myip,filename' monitoring.txt -c
 		# 1
 		if int(run_cmd("grep '^%s,filename' %s -c -m 1" % (self._my_type, self._monitoring_text))) == 1:
 			logdir = chomp(run_cmd("dirname $(grep '^%s,filename' %s -m 1|cut -d, -f3)" % (self._my_type, self._monitoring_text)))
 			return logdir
-			# e.g. /Users/Robin/bin on local mac
 		else:
 			log("Error: can't find location of log files for type %s and host %s" % (self._my_type, host_type))
 			exit(3)
@@ -248,7 +247,7 @@ class MyLogMain(object):
 			sleep(1)
 			self._scraper.buffer_scrape(send_mail, silent=self._silent)
 		else:
-			log("about to scrape file" + context)
+			log("about to scrape file " + context)
 			self._scraper.scrape(send_mail, silent=self._silent)
 
 	# provide a simple summary
