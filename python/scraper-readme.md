@@ -35,11 +35,13 @@ The main two components are in source code files checklogs.py and check.py. A he
 
 This program defines a reusable class called MyLogScraper which performs the scraping of logs, either a file or a buffer (for pipelines). Public methods:
 
+```python
 	def scrape(self, send_mail=false, silent=false):
 
 	def buffer_scrape(self, send_mail=false, silent=false):
 
 	def build_cmd_line(self, silent=true):
+```
 
 ### scrape method
 
@@ -67,27 +69,27 @@ The default check.py program demonstrates a typical example of how to use the ch
 
 The source code for check looks like this
 
+```python
 # process command line options, set up standard variables
-
 my_main = MyLogMain()
 
 # read in the success, warning, error lists for this type of monitoring
-
 my_main.read_lists()
 
 # scrape the log
-
 my_main.scrape_log()
 
 # process 'exact matches' (i.e. looking for a specific number of lines matching a string), if any
-
 my_main.process_exact_matches()
+```
 
 ## my-mail.py
 
 Program to send email to a specified distribution. Command-line looks like:
 
+```
 my-mail.py --subject=’sss’ [--body=’bbb’ | --file=filename ] [--send_to=’email_distro’] [--attach=afilename]
+```
 
 ### command line options
 
