@@ -209,7 +209,7 @@ class MyLogScraper(object):
 				fp.write("%d: %s\n" % (line[1], line[0]))
 			fp.close()
 
-			cmd_line += "--attach " + self._tempfile # attach the temp file to the email message; optionally copy its contents as the body (TODO)
+			cmd_line += "--filename " + self._tempfile # include the contents of the temp file in the email message
 		else:
 			cmd_line += "--body='%s'" % self.__summarize(silent)
 
@@ -219,7 +219,7 @@ class MyLogScraper(object):
 	def __finish_scraping(self, send_mail, silent):
 		cmd_line = self.build_cmd_line(silent)
 
-		if send_mail: run_cmd(cmd_line)
+		if send_mail: print run_cmd(cmd_line)
 		return cmd_line
 
 	# this public method scrapes from a log file

@@ -47,7 +47,7 @@ def build_msg(body, filename, attach):
 	# handle attachments, if any (changes the mime type of the msg)
 	if len(attach) == 0:
 		# Create a plain email message with contents
-		msg = MIMEText(body)
+		msg = MIMEText(my_body)
 	else:
 		# Create an email message with contents and attachment
 		# ref: http://stackoverflow.com/questions/3362600/how-to-send-email-attachments-with-python
@@ -111,7 +111,7 @@ attach = args.attach
 
 # need a file or a body but not both
 if len(body) + len(filename) == 0:
-	logerr("need filename or body")
+	logerr("need filename or body, missing from %r" % args)
 	parser.print_usage()
 	exit(1)
 

@@ -1,5 +1,6 @@
 Logtype,Checktype,String,Comment,When sorting, try to keep this line at the top of the file
 app,env,log=/home/app/shared/log,define a default location for an application's log files
+app,success,application log entry,example for testing purposes
 buffer_example,error,app is not available,example of what an app might log as an error message
 buffer_example,filename,/buffer,/buffer indicates to read from a buffer (pipe)
 buffer_example,success,successful log entry$,simple example where there is only 1 success line, optionally starting with a time stamp
@@ -15,8 +16,8 @@ myip,success,^# myip.py$
 myip,success,^# print my ip$
 myip,success,^#!/usr/bin/python$
 myip,success,^$
-myip,success,^from utils import *$,TODO: change * to something like \*
+myip,success,^from utils import \*$,TODO: change * to something like \*
 myip,success,^myipstr = run_cmd("ifconfig|grep '^en0' -A5|grep 'inet '|cut -d' ' -f2")$,TODO: escape special characters
 myip,success,^print "my ip is %r" % chomp(myipstr)$,TODO: escape special characters
-# myip,env,log=/Users/robin/mydocs/development,comment example(TODO)
+myip,comment,log=/Users/robin/mydocs/development,comment example(TODO)
 mymac,env,log=/Users/robin/mydocs/development
