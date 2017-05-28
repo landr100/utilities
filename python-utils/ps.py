@@ -1,124 +1,97 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # ps.py
-# python version of ps.rb
 
 from utils import *
-# defines a number of things including:
-# class Name1(object):
-# def print_files()
-# One_minute
-# One_hour
-# One_day
-# My_host
-# def now()
-# def log(str)
-# alias echo log
-# def logerr(str)
-# def run_cmd_no_output(cmd, echo=False)
-# def run_cmd(cmd, echo=False)
-# def parse_opts()
-# Is_mac
+# defines a number of things including: My_host, log(), logerr(), run_cmd(), Is_mac
 
 import sys # sys.argv[]
 import re # re.sub()
 
-# special case for mac : does not support ps uxf, different headers
+# special case for mac : does not support ps uxf, and different headers
 
-Debug = False
+class Ps(object):
+    def __init__(self, debug=False):
+        if debug:
+            log("My_host is %r, My_script is %r" % (My_host, My_script))
 
-def run_ps_once(cmd):
-  return run_cmd(cmd).split('\n') # get a string with many rows and then convert to an array
+        num_args = len(sys.argv) - 1 # the command line is always included
 
-def init():
-  if Debug:
-    log("My_host is %r, My_script is %r" % (My_host, My_script))
+        # if the delay is too small, then simply run this program once
+        self.delay = 60
+        if num_args > 0:
+            self.delay = int(sys.argv[1])
+        if self.delay < 30:
+            self.delay = 0
 
-  num_args = len(sys.argv) - 1 # the command line is always included
+        logerr("delay set to %r" % self.delay)
 
-  # if the delay is too small, then simply run this program once
-  delay = 60
-  if num_args > 0:
-    delay = int(sys.argv[1])
-  if delay < 30:
-    delay = 0
+        # define login account name on host
+        user = os.environ['USER']
+        users = ('%s,%s' % (user, 'lrs-core') if 'lrs' in My_host else user)
 
-  logerr("delay set to %r" % delay)
+        self.ps_cmd = ("ps -M|egrep '^%s|USER'|grep -v grep" % user if Is_mac else ("ps uxf -U %s" % users))
 
-  # USER=robin on mac
-  # LOGNAME=robin on mac
-  users = ("Robin" if Is_mac else "rgowin") # TODO: define login account name on host
+        if debug:
+            log("cmd is %r" % self.ps_cmd)
 
-  # use 'in' keyword for string comparison for regex matching # if 'qa-ampapp1' not in My_host:
-  if Debug:
-    log("users is %r" % users)
+        first_result = self.run_ps_once() # get a string with many rows and then convert to an array
+        if debug:
+            print first_result # ['rgowin  1360 s000    0.0 S    31T   0:00.05   0:00.11 -bash', 'rgowin  7441 s000    0.0 S    31T   0:00.01   0:00.01 docker run -it ubuntu bash',...]
 
-  if Is_mac:
-    ps_cmd = "ps -M"
-  else:
-    ps_cmd = "ps uxf -U " + users
+        header = first_result[0] # => "USER    PID   TT   %CPU STAT PRI     STIME     UTIME COMMAND"
+        if debug:
+            print header
 
-  first_result = run_ps_once(ps_cmd) # run_cmd(ps_cmd).split('\n') # get a string with many rows and then convert to an array
-  if Debug:
-    print first_result
+        # string substitution (replace); ref: https://mail.python.org/pipermail/tutor/2004-October/032320.html
+        # remove extraneous spaces and then convert to array
+        headings = re.sub('  *', ' ', header).split(' ') # => ['USER', 'PID', 'TT', '%CPU', 'STAT', 'PRI', 'STIME', 'UTIME', 'COMMAND']
 
-  header = first_result[0] # => "USER    PID   TT   %CPU STAT PRI     STIME     UTIME COMMAND"
-  if Debug:
-    print header
+        # there might be a python shortcut, but...
+        my_hash = {}
+        for heading in headings:
+            my_hash[heading] = len(my_hash)
 
-  # string substitution (replace); ref: https://mail.python.org/pipermail/tutor/2004-October/032320.html
-  # remove extraneous spaces and then convert to array
-  headings = re.sub('  *', ' ', header).split(' ') # => ['USER', 'PID', 'TT', '%CPU', 'STAT', 'PRI', 'STIME', 'UTIME', 'COMMAND']
+        if debug:
+            print my_hash # {'STAT': 4, 'PID': 1, 'TT': 2, 'PRI': 5, '%CPU': 3, 'COMMAND': 8, 'USER': 0, 'UTIME': 7, 'STIME': 6}
 
-  # there might be a python shortcut, but...
-  my_hash = {}
-  for heading in headings:
-    my_hash[heading] = len(my_hash)
+        self.user = my_hash['USER']
+        self.time = my_hash[('UTIME' if Is_mac else 'TIME')]
+        self.pid = my_hash['PID']
+        self.command_index = header.index('COMMAND') # => 65
 
-  if Debug:
-    print my_hash # {'STAT': 4, 'PID': 1, 'TT': 2, 'PRI': 5, '%CPU': 3, 'COMMAND': 8, 'USER': 0, 'UTIME': 7, 'STIME': 6}
+    def run_ps_once(self):
+        return run_cmd(self.ps_cmd).split('\n') # get a string with many rows and then convert to an array
+  
+    def run_ps(self):
+        for row in self.run_ps_once(): # gets a string with many rows, and converts to an array
+            k = re.sub('  *', ' ', row).split(' ') # => ['Robin  5749 s000    0.0 S    31T   0:00.02   0:00.05 -bash']
+            if len(k) >= max(self.user, self.pid, self.time):
+                # some commands, like for example kafka, can have very long output
+                command = row[self.command_index:][:200]
+                if len(row[self.command_index:]) > 200:
+                    command += '...'
+                # print "%s %s %s\t%s" % (k[self.user], k[self.pid], k[self.time], row[self.command_index:][:200])
+                print "%s %s %s\t%s" % (k[self.user], k[self.pid], k[self.time], command)
+                sys.stdout.flush()
 
-  user = my_hash['USER']
-  time_s = ('UTIME' if Is_mac else 'TIME')
-  time = my_hash[time_s]
-  pid = my_hash['PID']
-  cmd = my_hash['COMMAND']
-  command_index = header.index('COMMAND') # => 65
+    def run_ps_loop(self):
+        while True:
+            self.run_ps()
+            run_cmd("date 1>&2")
 
-  return delay, ps_cmd, user, time, pid, cmd, command_index
+            sys.stderr.write("%s\n" % My_host)
 
-# end of init() method
+            if self.delay == 0:
+                break
 
-def run_ps(cmd):
-  for row in run_ps_once(cmd): # gets a string with many rows, and converts to an array
-    k = re.sub('  *', ' ', row).split(' ') # => ['Robin  5749 s000    0.0 S    31T   0:00.02   0:00.05 -bash']
-    if len(k) >= max(user, pid, time):
-      print "%s %s %s\t%s" % (k[user], k[pid], k[time], row[command_index:])
-      sys.stdout.flush()
+            sleep(self.delay)
 
-  return
-
-delay, ps_cmd, user, time, pid, cmd, command_index = init()
-if Debug:
-  print ps_cmd, delay, user, time, pid, cmd, command_index
+        exit(0)
 
 # main loop
-
-# do not convert from Central to Eastern if running on a NY7 aa box or on a Mac
-Convert = ('' if Is_mac or find('aa[nop]', My_host) else "--date='1 hour'|sed 's/CDT/EDT/;s/CST/EST/'")
-
-while True:
-  run_ps(ps_cmd)
-  run_cmd("date " + Convert + " 1>&2")
-
-  sys.stderr.write("%s\n" % My_host)
-
-  if delay == 0:
-    break
-
-  sleep(delay)
-
-exit(0)
+print_debug_stmts = False
+Ps(print_debug_stmts).run_ps_loop()
 
 # end of file
 
