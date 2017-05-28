@@ -57,11 +57,11 @@ This program defines a reusable class called MyLogScraper which performs the scr
 
 Callers use this method to scrape a log file; it is the primary interface. Options include whether to send email and whether to print status messages.
 
-### buffer_scrape method
+### buffer\_scrape method
 
 Callers use this method to scrape a buffer, i.e. a pipe as part of a larger pipeline command. The interface is similar to the scrape method.
 
-### build_cmd_line method
+### build\_cmd\_line method
 
 Used in conjunction with either scrape message, allows the caller to determine whether or not to run the command that sends email with the results of the log scraping.
 
@@ -205,7 +205,7 @@ simple utility methods and variables
 
 see github
 
-[https://github.com/rbgowin/utilities/tree/master/python-utils](https://github.com/rbgowin/utilities/tree/master/python-utils)
+[https://github.com/landr100/utilities/tree/master/python-utils](https://github.com/rbgowin/utilities/tree/master/python-utils)
 
 * my utilities
 * first version 09/30/14
